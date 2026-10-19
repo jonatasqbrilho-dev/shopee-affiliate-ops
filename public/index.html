@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#111827">
+<title>ShopeeFila — Ofertas24horas</title>
+<style>
+:root{color-scheme:dark;--bg:#0b1220;--panel:#111c2f;--line:#26364d;--text:#f4f7fb;--muted:#a8b5c8;--accent:#fb923c;--blue:#60a5fa}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px system-ui,-apple-system,Segoe UI,sans-serif}main{max-width:850px;margin:auto;padding:20px 14px 60px}header{padding:16px 0 22px}h1{font-size:26px;margin:0 0 6px}p{color:var(--muted);line-height:1.5}.panel,.item{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin:14px 0}label{display:block;font-size:14px;color:var(--muted);margin:12px 0 6px}input,textarea,button,select{font:inherit}input,textarea{width:100%;padding:12px;border:1px solid var(--line);border-radius:9px;background:#0b1424;color:var(--text)}textarea{min-height:80px;resize:vertical}button,.btn{border:0;border-radius:9px;padding:11px 14px;font-weight:700;cursor:pointer;background:var(--accent);color:#211307}button.secondary{background:#24354b;color:var(--text)}button.danger{background:#7f1d1d;color:white}.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.item h3{margin:0 0 8px;overflow-wrap:anywhere}.meta{font-size:12px;color:var(--muted)}.status{display:inline-block;border:1px solid var(--line);border-radius:20px;padding:3px 9px;font-size:12px;margin:5px 0 8px}.hidden{display:none!important}.notice{padding:10px 12px;border-radius:8px;background:#1e293b;margin:10px 0;white-space:pre-wrap;overflow-wrap:anywhere}.ok{border:1px solid #166534}.err{border:1px solid #991b1b}.top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}.links a{color:#93c5fd;overflow-wrap:anywhere}.small{font-size:13px}.grid{display:grid;grid-template-columns:1fr;gap:0}@media(min-width:650px){.grid{grid-template-columns:1fr 1fr;gap:0 14px}}
+</style>
+</head>
+<body><main>
+<header><div class="meta">SISTEMA DE AFILIADOS</div><h1>📦 ShopeeFila</h1><p>Organize seus vídeos e envie ofertas para o canal Telegram Ofertas24horas.</p></header>
+<section class="panel" id="login">
+<h2>Entrar no sistema</h2><p>Use a senha de administração configurada nas variáveis do Netlify.</p>
+<label for="password">Senha de administração</label><input id="password" type="password" autocomplete="current-password" placeholder="Digite sua senha">
+<div class="actions"><button id="loginBtn">Entrar</button></div><div id="loginMsg" class="notice hidden"></div>
+</section>
+<section id="app" class="hidden">
+<div class="top"><h2>Adicionar à fila</h2><button id="logout" class="secondary">Sair</button></div>
+<div class="panel">
+<form id="addForm">
+<label for="title">Nome do produto ou vídeo *</label><input id="title" required maxlength="180" placeholder="Ex.: Organizador de cozinha">
+<div class="grid">
+<div><label for="productUrl">Link do produto (Shopee ou outro)</label><input id="productUrl" type="url" placeholder="https://..."></div>
+<div><label for="videoUrl">Link direto do vídeo (opcional)</label><input id="videoUrl" type="url" placeholder="https://...mp4"></div>
+</div>
+<label for="description">Descrição da oferta</label><textarea id="description" maxlength="2000" placeholder="Preço, benefício e chamada para ação"></textarea>
+<div class="actions"><button type="submit">Adicionar à fila</button><button type="button" id="refresh" class="secondary">Atualizar fila</button></div>
+</form></div>
+<div class="top"><h2>Fila de vídeos e ofertas</h2><span id="count" class="meta"></span></div>
+<div id="items"></div>
+<p class="small">Observação: este sistema guarda links e dados da fila. Não faz upload de arquivos de vídeo nem publica diretamente no TikTok. Para enviar um vídeo pelo Telegram, o link precisa ser acessível pelo Telegram e apontar para um vídeo compatível.</p>
+</section>
+<div id="globalMsg" class="notice hidden"></div>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+let password = "";
+function msg(target, text, isError=false){const el=$(target);el.textContent=text;el.classList.remove("hidden","ok","err");el.classList.add(isError?"err":"ok");}
+function clearMsg(target){$(target).classList.add("hidden");}
+async function api(path, options={}) {
+ const response=await fetch(path,{...options,headers:{"content-type":"application/json","x-admin-password":password,...(options.headers||{})}});
+ const data=await response.json().catch(()=>({error:"Resposta inválida do servidor. Confira a implantação no Netlify."}));
+ if(!response.ok) throw new Error(data.error||"Erro na solicitação.");
+ return data;
+}
+function showApp(on){$("login").classList.toggle("hidden",on);$("app").classList.toggle("hidden",!on);}
+$("loginBtn").onclick=async()=>{password=$("password").value;if(!password){msg("loginMsg","Digite sua senha.",true);return;}try{await api("/.netlify/functions/queue");showApp(true);clearMsg("loginMsg");await loadQueue();}catch(e){msg("loginMsg",e.message,true);password="";}};
+$("password").addEventListener("keydown",e=>{if(e.key==="Enter")$("loginBtn").click()});
+$("logout").onclick=()=>{password="";$("password").value="";showApp(false)};
+$("refresh").onclick=loadQueue;
+$("addForm").onsubmit=async e=>{e.preventDefault();try{await api("/.netlify/functions/queue",{method:"POST",body:JSON.stringify({title:$("title").value,productUrl:$("productUrl").value,videoUrl:$("videoUrl").value,description:$("description").value})});$("addForm").reset();msg("globalMsg","Oferta adicionada à fila.");await loadQueue();}catch(err){msg("globalMsg",err.message,true)}};
+function el(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n}
+function linkLine(label,url){if(!url)return null;const p=el("p","links small");p.append(el("strong","",label+" "));const a=el("a","",url);a.href=url;a.target="_blank";a.rel="noopener noreferrer";p.append(a);return p}
+async function action(id,method,body){await api("/.netlify/functions/queue?id="+encodeURIComponent(id),{method,body:body?JSON.stringify(body):undefined});await loadQueue()}
+async function loadQueue(){try{const data=await api("/.netlify/functions/queue");const root=$("items");root.replaceChildren();$("count").textContent=data.items.length+" item(ns)";if(!data.items.length){root.append(el("div","panel","Sua fila está vazia. Adicione o primeiro produto acima."));return;}for(const item of data.items){const card=el("article","item");card.append(el("h3","",item.title));card.append(el("span","status",item.status||"Pendente"));card.append(el("div","meta","Adicionado em "+new Date(item.createdAt).toLocaleString("pt-BR")));if(item.description)card.append(el("p","",item.description));const pl=linkLine("Produto:",item.productUrl);if(pl)card.append(pl);const vl=linkLine("Vídeo:",item.videoUrl);if(vl)card.append(vl);const actions=el("div","actions");const send=el("button","", "Enviar para Telegram");send.onclick=async()=>{send.disabled=true;try{const r=await api("/.netlify/functions/telegram",{method:"POST",body:JSON.stringify({id:item.id})});msg("globalMsg",r.telegram||"Enviado.");await loadQueue()}catch(e){msg("globalMsg",e.message,true)}finally{send.disabled=false}};actions.append(send);const copy=el("button","secondary","Copiar dados");copy.onclick=async()=>{const t=[item.title,item.description,item.productUrl].filter(Boolean).join("\n");try{await navigator.clipboard.writeText(t);msg("globalMsg","Dados copiados.")}catch{msg("globalMsg",t)}};actions.append(copy);const published=el("button","secondary","Marcar como publicado");published.onclick=()=>action(item.id,"PATCH",{status:"Publicado manualmente"}).catch(e=>msg("globalMsg",e.message,true));actions.append(published);const del=el("button","danger","Excluir");del.onclick=async()=>{if(!confirm("Excluir este item da fila?"))return;try{await action(item.id,"DELETE")}catch(e){msg("globalMsg",e.message,true)}};actions.append(del);card.append(actions);root.append(card)}}catch(e){msg("globalMsg",e.message,true)}}
+fetch("/.netlify/functions/health").then(r=>r.json()).then(d=>{if(!d.ok)msg("globalMsg","Serviço indisponível.",true)}).catch(()=>{});
+</script></body></html>
